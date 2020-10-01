@@ -5,7 +5,6 @@ COMMANDS = {
 }
 
 MESSAGES = {
-    'new_user_added': 'Новый пользователь добавлен.',
     'error_adding_user': 'Ошибка добавления пользователя.',
     'creating_new_chat': 'Привет!\n'
                          'Похоже, еще ничего не считали.\n'
