@@ -1,6 +1,6 @@
 # Inventorist
 
-[![Build Status](https://travis-ci.org/rozumalex/inventorist.svg?branch=master)](https://travis-ci.org/github/triplinker/triplinker)
+[![Build Status](https://travis-ci.org/rozumalex/inventorist.svg?branch=master)](https://travis-ci.org/github/rozumalex/inventorist)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/triplinker/triplinker/blob/master/LICENSE)
 
 ---
@@ -58,5 +58,5 @@ python bot.py
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/rozumalex/inventorist/blob/master/LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/rozumalex/inventorist/blob/master/LICENSE) file for details.
 
