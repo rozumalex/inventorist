@@ -3,6 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
 import db_map as db
+from lexicon import separator
 from settings import config
 
 engine = create_engine(f'sqlite:///../{config.database.name}', echo=False)
@@ -11,14 +12,14 @@ Session = sessionmaker(bind=engine)
 
 
 class AttrDict(dict):
-    """Дает доступ к ключам словаря через точку"""
+    """Let to get access to dictionary keys through dot"""
 
     def __getattr__(self, name):
         return self[name]
 
 
 def row_to_dict(row):
-    """Делает из ответа базы данных словарь"""
+    """Creates a dictionary from db answer"""
     dictionary = {}
     for column in row.__table__.columns:
         dictionary[column.name] = str(getattr(row, column.name))
@@ -98,7 +99,7 @@ class Chat(db.Chat):
             if chat.memory is None:
                 memory = message.text
             else:
-                memory = chat.memory + ' > ' + message.text
+                memory = chat.memory + separator + message.text
             session.query(Chat).filter(
                 Chat.id == message.chat.id).update({"memory": memory})
         except Exception as e:
@@ -178,7 +179,7 @@ class Category(db.Category):
         session = Session()
         try:
             memory = session.query(Chat).filter(
-                Chat.id == message.chat.id).one().memory.split(' > ')
+                Chat.id == message.chat.id).one().memory.split(separator)
             session.query(Category).filter(
                 Category.chat == message.chat.id,
                 Category.name == memory[2]).update({"name": memory[4]})
@@ -201,7 +202,7 @@ class Category(db.Category):
     def remove(message):
         session = Session()
         try:
-            memory = Chat.get(message).memory.split(' > ')
+            memory = Chat.get(message).memory.split(separator)
             session.query(Category).filter(
                 Category.chat == message.chat.id,
                 Category.name == memory[2]).delete()
@@ -258,7 +259,7 @@ class Position(db.Position):
     def set_name(message):
         session = Session()
         try:
-            memory = Chat.get(message).memory.split(' > ')
+            memory = Chat.get(message).memory.split(separator)
             session.query(Position).filter(
                 Position.chat == message.chat.id,
                 Position.name == memory[2]).update({"name": memory[4]})
@@ -278,7 +279,7 @@ class Position(db.Position):
     def get_all_in_category(message):
         session = Session()
         try:
-            memory = Chat.get(message).memory.split(' > ')
+            memory = Chat.get(message).memory.split(separator)
             position_rows = session.query(Position).filter(
                 Position.chat == message.chat.id,
                 Position.category == memory[0])
@@ -298,7 +299,7 @@ class Position(db.Position):
         session = Session()
         if not Position.get(message):
             try:
-                memory = Chat.get(message).memory.split(' > ')
+                memory = Chat.get(message).memory.split(separator)
                 position = Position(message.chat.id, memory[0], message.text)
             except Exception as e:
                 print(e)
@@ -314,7 +315,7 @@ class Position(db.Position):
     def remove(message):
         session = Session()
         try:
-            memory = Chat.get(message).memory.split(' > ')
+            memory = Chat.get(message).memory.split(separator)
             session.query(Position).filter(
                 Position.chat == message.chat.id,
                 Position.name == memory[2]).delete()
@@ -336,7 +337,7 @@ class Transaction(db.Transaction):
     def add(message):
         session = Session()
         try:
-            memory = Chat.get(message).memory.split(' > ')
+            memory = Chat.get(message).memory.split(separator)
             date = datetime.utcfromtimestamp(message.date)
             year = date.strftime('%Y')
             month = date.strftime('%m')
@@ -379,7 +380,7 @@ class Transaction(db.Transaction):
     def get_months(message):
         session = Session()
         try:
-            year = Chat.get(message).memory.split(' > ')[1]
+            year = Chat.get(message).memory.split(separator)[1]
             months_row = session.query(
                 Transaction.month.distinct()).filter(
                 Transaction.chat == message.chat.id,
@@ -399,7 +400,7 @@ class Transaction(db.Transaction):
     def get_report(message):
         session = Session()
         try:
-            memory = Chat.get(message).memory.split(' > ')
+            memory = Chat.get(message).memory.split(separator)
             transactions = session.query(Transaction).filter(
                 Transaction.chat == message.chat.id,
                 Transaction.year == memory[1],

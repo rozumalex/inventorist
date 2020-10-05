@@ -3,15 +3,15 @@ from telebot import types
 
 from settings import config
 from db_handler import User, Chat, Category, Position, Transaction
-from lexicon import MESSAGES, COMMANDS
+from lexicon import commands, messages, separator
 
 
 bot = telebot.TeleBot(config.bot.token)
 
 
-def cancel_check(func):
+def check_cancel(func):
     def wrapper(message):
-        if message.text == COMMANDS['cancel']:
+        if message.text == commands.cancel:
             return process_cancel(message)
         else:
             return func(message)
@@ -20,228 +20,209 @@ def cancel_check(func):
 
 def process_cancel(message):
     Chat.reset(message)
-    msg = MESSAGES['memory_cleared']
+    msg = messages.memory_cleared
     bot.send_message(message.chat.id, msg, reply_markup=get_markup(message))
 
 
 def base_check(func):
-    """Декоратор проверяет существование пользователя и чата."""
+    """Decorator checks if user and chat exists"""
     def wrapper(message):
         if not User.get(message):
             if not User.add(message):
-                msg = MESSAGES['error_adding_user']
+                msg = messages.error_adding_user
                 bot.send_message(message.chat.id, msg)
 
         if not Chat.get(message):
-            msg = MESSAGES['creating_new_chat']
+            msg = messages.creating_new_chat
             next_step = bot.send_message(message.chat.id, msg)
-            return bot.register_next_step_handler(next_step, set_name)
+            return bot.register_next_step_handler(next_step, set_chat_name)
 
         return func(message)
     return wrapper
 
 
-def set_name(message):
+def set_chat_name(message):
     if Chat.add(message):
-        msg = MESSAGES['new_chat_created']
+        msg = messages.new_chat_created
         markup = get_markup(message)
         bot.send_message(message.chat.id, msg, reply_markup=markup)
     else:
-        msg = MESSAGES['try_again']
+        msg = messages.try_again
         next_step = bot.send_message(message.chat.id, msg)
-        bot.register_next_step_handler(next_step, set_name)
+        bot.register_next_step_handler(next_step, set_chat_name)
 
 
 def get_markup(message):
     markup = types.ReplyKeyboardMarkup(one_time_keyboard=True,
                                        resize_keyboard=True)
-    memory = Chat.get(message).memory.split(' > ')
-    if memory[0] == 'None':
+    memory = Chat.get(message).memory.split(separator)
+    if memory[0] == commands.none:
         for category in Category.get_all(message):
             markup.row(category)
-    elif memory[0] == COMMANDS['report']:
+    elif memory[0] == commands.report:
         if len(memory) == 1:
             for year in Transaction.get_years(message):
                 markup.row(year)
         if len(memory) == 2:
             for month in Transaction.get_months(message):
                 markup.row(month)
-    elif memory[0] == COMMANDS['edit']:
-        markup.row('Категории')
-        markup.row('Позиции')
+    elif memory[0] == commands.edit:
+        markup.row(commands.categories)
+        markup.row(commands.positions)
     elif len(memory) == 1:
         for position in Position.get_all_in_category(message):
             markup.row(position)
-    if memory[0] != 'None':
-        markup.row(COMMANDS['cancel'])
+    if memory[0] != commands.none:
+        markup.row(commands.cancel)
     else:
-        markup.row(COMMANDS['report'])
-        markup.row(COMMANDS['edit'])
+        markup.row(commands.report)
+        markup.row(commands.edit)
     return markup
 
 
-@cancel_check
+@check_cancel
 def select_position(message):
     Chat.set(message)
     Position.add(message)
-    msg = MESSAGES['input_value']
+    msg = messages.input_value
     markup = get_markup(message)
     next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
     bot.register_next_step_handler(next_step, input_value)
 
 
-@cancel_check
+@check_cancel
 def select_year(message):
     Chat.set(message)
-    msg = MESSAGES['select_month']
+    msg = messages.select_month
     markup = get_markup(message)
     next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
     bot.register_next_step_handler(next_step, select_month)
 
 
-@cancel_check
+@check_cancel
 def select_month(message):
     Chat.set(message)
-    msg = MESSAGES['report'] + Transaction.get_report(message)
+    msg = messages.report + Transaction.get_report(message)
     Chat.reset(message)
     bot.send_message(message.chat.id, msg, reply_markup=get_markup(message))
 
 
-@cancel_check
+@check_cancel
 def confirm_edit(message):
     Chat.set(message)
-    memory = Chat.get(message).memory.split(' > ')
-    if memory[3] == 'Удалить' and memory[4] == 'Да':
-        if memory[1] == 'Категории':
-            Category.remove(message)
-            Chat.reset(message)
-            msg = 'Удалено'
-            markup = get_markup(message)
-            bot.send_message(message.chat.id, msg, reply_markup=markup)
-        elif memory[1] == 'Позиции':
-            Position.remove(message)
-            Chat.reset(message)
-            msg = 'Удалено'
-            markup = get_markup(message)
-            bot.send_message(message.chat.id, msg, reply_markup=markup)
+    memory = Chat.get(message).memory.split(separator)
+    if memory[3] == commands.remove and memory[4] == commands.yes:
+        try:
+            if memory[1] == commands.categories:
+                Category.remove(message)
+
+            elif memory[1] == commands.positions:
+                Position.remove(message)
+        except Exception as e:
+            print(e)
+            msg = messages.error
         else:
-            msg = 'Ошибка'
-            Chat.reset(message)
-            markup = get_markup(message)
-            bot.send_message(message.chat.id, msg, reply_markup=markup)
-    elif memory[3] == 'Переименовать':
-        if memory[1] == 'Категории':
-            Category.set_name(message)
-            Chat.reset(message)
-            msg = 'Переименовано.'
-            markup = get_markup(message)
-            bot.send_message(message.chat.id, msg, reply_markup=markup)
-        elif memory[1] == 'Позиции':
-            Position.set_name(message)
-            Chat.reset(message)
-            msg = 'Переименовано.'
-            markup = get_markup(message)
-            bot.send_message(message.chat.id, msg, reply_markup=markup)
+            msg = messages.deleted
+    elif memory[3] == commands.rename:
+        try:
+            if memory[1] == commands.categories:
+                Category.set_name(message)
+            elif memory[1] == commands.positions:
+                Position.set_name(message)
+        except Exception as e:
+            print(e)
+            msg = messages.error
         else:
-            msg = 'Ошибка'
-            Chat.reset(message)
-            markup = get_markup(message)
-            bot.send_message(message.chat.id, msg, reply_markup=markup)
+            msg = messages.renamed
+    else:
+        msg = messages.error
+    Chat.reset(message)
+    markup = get_markup(message)
+    bot.send_message(message.chat.id, msg, reply_markup=markup)
 
 
-@cancel_check
+@check_cancel
 def select_what_to_do(message):
     Chat.set(message)
     markup = types.ReplyKeyboardMarkup(one_time_keyboard=True,
                                        resize_keyboard=True)
-    if message.text == 'Переименовать':
-        msg = 'Введи новое название:'
-        markup.row('Отмена')
-        next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
-        bot.register_next_step_handler(next_step, confirm_edit)
-    elif message.text == 'Удалить':
-        msg = 'Точно удалить?'
-        markup.row('Да')
-        markup.row('Отмена')
+    if message.text == commands.rename or commands.remove:
+        if message.text == commands.rename:
+            msg = messages.enter_new_name
+        else:
+            msg = messages.confirm_delete
+            markup.row(commands.yes)
+        markup.row(commands.cancel)
         next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
         bot.register_next_step_handler(next_step, confirm_edit)
     else:
-        msg = MESSAGES['try_again']
+        msg = messsages.try_again
         next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
         bot.register_next_step_handler(next_step, select_what_to_do)
 
 
-@cancel_check
+@check_cancel
 def select_pos(message):
     Chat.set(message)
-
+    markup = types.ReplyKeyboardMarkup(one_time_keyboard=True,
+                                       resize_keyboard=True)
     if message.text in Category.get_all(message)\
             or Position.get_all(message) or Transaction.get_all(message):
-        msg = 'Выбери что сделать:'
-        markup = types.ReplyKeyboardMarkup(one_time_keyboard=True,
-                                           resize_keyboard=True)
-        markup.row('Переименовать')
-        markup.row('Удалить')
-        markup.row('Отмена')
+        msg = messages.select_edit
+        markup.row(commands.rename)
+        markup.row(commands.remove)
+        markup.row(commands.cancel)
         next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
         bot.register_next_step_handler(next_step, select_what_to_do)
     else:
-        msg = MESSAGES['try_again']
-        markup = types.ReplyKeyboardMarkup(one_time_keyboard=True,
-                                           resize_keyboard=True)
-        memory = Chat.get(message).memory.split(' > ')
-        if memory[1] == 'Категории':
+        msg = messages.try_again
+        memory = Chat.get(message).memory.split(separator)
+        if memory[1] == commands.categories:
             res = Category.get_all(message)
-        elif memory[1] == 'Позиции':
+        else:
             res = Position.get_all(message)
         for pos in res:
             markup.row(pos)
-        markup.row(COMMANDS['cancel'])
-        next_step = bot.send_message(message.chat.id, msg,
-                                     reply_markup=markup)
+        markup.row(commands.cancel)
+        next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
         bot.register_next_step_handler(next_step, select_pos)
 
 
-@cancel_check
+@check_cancel
 def select_edit(message):
     Chat.set(message)
     markup = types.ReplyKeyboardMarkup(one_time_keyboard=True,
                                        resize_keyboard=True)
-    memory = Chat.get(message).memory.split(' > ')
-    if memory[1] == 'Категории':
+    memory = Chat.get(message).memory.split(separator)
+    if memory[1] == commands.categories:
         res = Category.get_all(message)
-    elif memory[1] == 'Позиции':
+    else:
         res = Position.get_all(message)
     for pos in res:
         markup.row(pos)
-    markup.row(COMMANDS['cancel'])
-    if message.text == 'Категории':
-        msg = 'Выбери категорию:'
-        next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
-        bot.register_next_step_handler(next_step, select_pos)
-    elif message.text == 'Позиции':
-        msg = 'Выбери позицию:'
-        next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
-        bot.register_next_step_handler(next_step, select_pos)
-    elif message.text == 'Записи':
-        msg = 'Выбери запись:'
+    markup.row(commands.cancel)
+    if message.text == commands.categories or commands.positions:
+        if message.text == commands.categories:
+            msg = messages.select_category_to_edit
+        else:
+            msg = messages.select_position_to_edit
         next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
         bot.register_next_step_handler(next_step, select_pos)
     else:
-        msg = MESSAGES['try_again']
+        msg = messages.try_again
         next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
         bot.register_next_step_handler(next_step, select_edit)
 
 
-@cancel_check
+@check_cancel
 def input_value(message):
     if not Transaction.add(message):
-        msg = MESSAGES['try_again']
+        msg = messages.try_again
         next_step = bot.send_message(message.chat.id, msg)
         bot.register_next_step_handler(next_step, input_value)
     else:
         Chat.reset(message)
-        msg = MESSAGES['transaction_success']
+        msg = messages.transaction_success
         bot.send_message(message.chat.id, msg,
                          reply_markup=get_markup(message))
 
@@ -253,24 +234,22 @@ def process_start(message):
 
 
 @bot.message_handler(content_types=['text'])
-@cancel_check
+@check_cancel
 @base_check
 def process_message(message):
     Chat.set(message)
-    if message.text == COMMANDS['report']:
-        msg = MESSAGES['select_year']
-        markup = get_markup(message)
+    markup = get_markup(message)
+    if message.text == commands.report:
+        msg = messages.select_year
         next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
         bot.register_next_step_handler(next_step, select_year)
-    elif message.text == COMMANDS['edit']:
-        msg = MESSAGES['select_edit']
-        markup = get_markup(message)
+    elif message.text == commands.edit:
+        msg = messages.select_edit
         next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
         bot.register_next_step_handler(next_step, select_edit)
     else:
         Category.add(message)
-        msg = MESSAGES['select_position']
-        markup = get_markup(message)
+        msg = messages.select_position
         next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
         bot.register_next_step_handler(next_step, select_position)
 

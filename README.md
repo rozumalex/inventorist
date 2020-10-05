@@ -5,14 +5,14 @@
 
 ---
 
-## Getting Started
+Inventorist is a telegram stocktaking bot for your business needs.
 
-Hello!
+## Installation Guide
+
 
 If you want to get a copy of this bot for your personal usage,
 please follow the instructions below.
 
-## Running Locally
 
 ### Clone the project to your local machine
 
