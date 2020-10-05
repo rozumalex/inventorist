@@ -38,7 +38,7 @@ poetry install
 ### Create config.yaml file in the main folder
 
 ***Note:*** insert your token and preferred name for database.
-You can find token it in BotFather
+You can find token it in BotFather.
 
 ```
 bot:
@@ -50,10 +50,9 @@ database:
 
 ### Run bot
 
-***Note:*** make sure that you are in the same directory
-where the file bot.py is located.
-
 ```
+poetry shell
+cd bot
 python bot.py
 ```
 
