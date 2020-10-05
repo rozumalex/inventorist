@@ -3,6 +3,7 @@ name = "inventorist"
 version = "0.1.0"
 description = ""
 authors = ["Alex Rozum <rozumalex@gmail.com>"]
+license = "MIT"
 
 [tool.poetry.dependencies]
 python = "^3.8"
