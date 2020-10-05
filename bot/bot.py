@@ -156,7 +156,7 @@ def select_what_to_do(message):
         next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
         bot.register_next_step_handler(next_step, confirm_edit)
     else:
-        msg = messsages.try_again
+        msg = messages.try_again
         next_step = bot.send_message(message.chat.id, msg, reply_markup=markup)
         bot.register_next_step_handler(next_step, select_what_to_do)
 
